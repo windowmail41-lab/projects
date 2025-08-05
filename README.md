@@ -1,0 +1,116 @@
+import gradio as gr
+from openai import OpenAI
+import os
+from dotenv import load_dotenv
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
+print("\n=== KEY VERIFICATION ===")
+print("Key exists?:", "YES" if api_key else "NO")
+print("Key length:", len(api_key) if api_key else "N/A")
+print("First 5 chars:", api_key[:5] if api_key else "N/A")
+print("=======================\n")
+
+load_dotenv('.env') 
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    raise ValueError("No OPENAI_API_KEY found in .env file")
+client = OpenAI(api_key=api_key)
+def debug_code(code, language, error_message=None, temperature=0.7):
+    """
+    Debug code using OpenAI's API
+    """
+    prompt = f"""Analyze this {language} code:
+    
+    {code}
+    """
+    
+    if error_message:
+        prompt += f"\n\nError message received:\n{error_message}\n\nPlease explain and fix the error."
+    else:
+        prompt += "\n\nPlease:\n1. Identify potential bugs\n2. Suggest improvements\n3. Provide optimized code"
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an expert code debugging assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=temperature
+        )
+        return response.choices[0].message.content
+    
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+def explain_code(code, language, concept=None, temperature=0.5):
+    """
+    Explain code using OpenAI's API
+    """
+    prompt = f"""Explain this {language} code in detail:
+    
+    {code}
+    """
+    
+    if concept:
+        prompt += f"\n\nFocus specifically on how {concept} is implemented."
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a patient code explanation assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=temperature
+        )
+        return response.choices[0].message.content
+    
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+with gr.Blocks(title="AI Code Debugger") as demo:
+    gr.Markdown(" AI Code Debugging Assistant")
+    
+    with gr.Tabs():
+        with gr.Tab("Debug Code"):
+            with gr.Row():
+                with gr.Column():
+                    code_input = gr.Textbox(label="Your Code", lines=10)
+                    language = gr.Dropdown(
+                        choices=["Python", "JavaScript", "Java", "C++", "C#", "Other"],
+                        value="Python",
+                        label="Language"
+                    )
+                    error_msg = gr.Textbox(label="Error Message (Optional)", lines=2)
+                    debug_btn = gr.Button("Debug")
+                
+                with gr.Column():
+                    debug_output = gr.Textbox(label="Debugging Results", lines=15)
+        
+        with gr.Tab("Explain Code"):
+            with gr.Row():
+                with gr.Column():
+                    explain_code_input = gr.Textbox(label="Code to Explain", lines=10)
+                    explain_language = gr.Dropdown(
+                        choices=["Python", "JavaScript", "Java", "C++", "C#", "Other"],
+                        value="Python",
+                        label="Language"
+                    )
+                    concept_input = gr.Textbox(label="Specific Concept (Optional)")
+                    explain_btn = gr.Button("Explain")
+                
+                with gr.Column():
+                    explain_output = gr.Textbox(label="Explanation", lines=15)
+
+    debug_btn.click(
+        debug_code,
+        inputs=[code_input, language, error_msg],
+        outputs=debug_output
+    )
+    
+    explain_btn.click(
+        explain_code,
+        inputs=[explain_code_input, explain_language, concept_input],
+        outputs=explain_output
+    )
